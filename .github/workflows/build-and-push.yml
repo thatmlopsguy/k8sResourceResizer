@@ -1,4 +1,4 @@
-name: Build and Push to ECR
+name: Build and Push to github container registry
 
 on: [push]
 
@@ -8,32 +8,23 @@ jobs:
     permissions:
       id-token: write
       contents: read
-    
+
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
-      - name: Login to AWS 
-        uses: aws-actions/configure-aws-credentials@v4
+      - name: Login to GHCR
+        uses: docker/login-action@vb45d80f862d83dbcd57f89517bcf500b2ab88fb2 # v4.0.0
         with:
-          role-to-assume: ${{ secrets.AWS_IAM_ROLE }}
-          role-session-name: GitHub_to_AWS_via_FederatedOIDC
-          aws-region: ${{ secrets.AWS_REGION }}
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Sts GetCallerIdentity
-        run: |
-          aws sts get-caller-identity
-
-      - name: Login to Amazon ECR Public
-        id: login-ecr-public
-        run: |
-          aws ecr-public get-login-password --region us-east-1 | docker login --username AWS --password-stdin public.ecr.aws
-
-      - name: Build and push image to ECR
-        env:
-          ECR_REGISTRY: ${{ secrets.ECR_REGISTRY }}
-          ECR_REPOSITORY: ${{ secrets.ECR_REPOSITORY }}
-        run: |
-          cd K8sResourceResizer
-          docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:latest --platform=linux/amd64 -f Docker/Dockerfile .
-          docker push $ECR_REGISTRY/$ECR_REPOSITORY:latest
+      - name: Build and push
+        uses: docker/build-push-action@d08e5c354a6adb9ed34480a06d141179aa583294 # v7.0.0
+        with:
+          context: K8sResourceResizer
+          push: true
+          file: Docker/Dockerfile
+          tags: |
+            ghcr.io/${{ github.repository }}:latest

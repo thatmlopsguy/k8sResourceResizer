@@ -1,18 +1,6 @@
 version: 2
 updates:
-  - package-ecosystem: "pip"
-    directory: "/K8sResourceResizer"
+  - package-ecosystem: "github-actions"
+    directory: "/"
     schedule:
-      interval: "weekly"
-    target-branch: "dev"
-    open-pull-requests-limit: 5
-    labels:
-      - "dependencies"
-      - "python"
-    commit-message:
-      prefix: "pip"
-      include: "scope"
-    reviewers:
-      - "hcayada"
-    assignees:
-      - "hcayada" 
+      interval: weekly
