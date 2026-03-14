@@ -50,3 +50,8 @@ repos:
       - id: ruff
         args: [ --fix ]
       - id: ruff-format
+  - repo: https://github.com/abravalheri/validate-pyproject
+    rev: v0.25
+    hooks:
+      - id: validate-pyproject
+        priority: 0

@@ -16,6 +16,7 @@ from logger import logger
 from functools import wraps
 import re
 
+
 def ensure_directory_exists(path):
     """
     Ensure that the directory exists, creating it if necessary.
@@ -26,6 +27,7 @@ def ensure_directory_exists(path):
     if not os.path.exists(path):
         logger.info(f"Creating directory: {path}")
         os.makedirs(path)
+
 
 def parse_duration(duration_str: str) -> int:
     """
@@ -49,7 +51,7 @@ def parse_duration(duration_str: str) -> int:
     if not duration_str:
         return 24  # Default to 24 hours
 
-    pattern = re.compile(r'^(\d+)(h|d|w|yr)$')
+    pattern = re.compile(r"^(\d+)(h|d|w|yr)$")
     match = pattern.match(duration_str.lower())
 
     if not match:
@@ -62,20 +64,17 @@ def parse_duration(duration_str: str) -> int:
     value = int(value)
 
     # Convert to hours
-    multipliers = {
-        'h': 1,
-        'd': 24,
-        'w': 24 * 7,
-        'yr': 24 * 365
-    }
+    multipliers = {"h": 1, "d": 24, "w": 24 * 7, "yr": 24 * 365}
 
     return value * multipliers[unit]
+
 
 def handle_exceptions(func):
     """
     A decorator that wraps functions to handle all exceptions consistently.
     Logs the error and re-raises it.
     """
+
     @wraps(func)
     def wrapper(*args, **kwargs):
         try:
@@ -87,4 +86,5 @@ def handle_exceptions(func):
             logger.error(f"Error in {func_name}: {str(e)}", exc_info=True)
             # Re-raise the exception
             raise
+
     return wrapper

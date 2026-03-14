@@ -9,7 +9,8 @@ import warnings
 from functools import lru_cache
 
 # Filter out specific scikit-learn deprecation warnings
-warnings.filterwarnings('ignore', category=FutureWarning)
+warnings.filterwarnings("ignore", category=FutureWarning)
+
 
 class PMDARIMAStrategy(BaseStrategy):
     """
@@ -24,12 +25,13 @@ class PMDARIMAStrategy(BaseStrategy):
     - Early stopping for model selection
     - Downsampling for long series
     """
+
     def __init__(self, config):
         super().__init__(config)
         self.forecast_steps = 12  # 1-hour prediction window
-        self.seasonal = True      # Enable seasonal patterns
-        self.seasonal_period = 12 # 1-hour seasonality (with 5-min intervals)
-        self._model_cache = {}    # Cache for similar patterns
+        self.seasonal = True  # Enable seasonal patterns
+        self.seasonal_period = 12  # 1-hour seasonality (with 5-min intervals)
+        self._model_cache = {}  # Cache for similar patterns
         self.max_series_length = 500  # Maximum length for time series
 
     @lru_cache(maxsize=1000)
@@ -37,13 +39,14 @@ class PMDARIMAStrategy(BaseStrategy):
         """Generate cache key based on series characteristics."""
         return str(hash(stats_tuple))
 
-    def _prepare_time_series(self, samples: List[float], timestamps: List[float]) -> pd.Series:
+    def _prepare_time_series(
+        self, samples: List[float], timestamps: List[float]
+    ) -> pd.Series:
         """Prepare time series data for ARIMA modeling with downsampling."""
-        df = pd.DataFrame({
-            'timestamp': pd.to_datetime(timestamps, unit='s'),
-            'value': samples
-        })
-        df.set_index('timestamp', inplace=True)
+        df = pd.DataFrame(
+            {"timestamp": pd.to_datetime(timestamps, unit="s"), "value": samples}
+        )
+        df.set_index("timestamp", inplace=True)
 
         # Downsample if series is too long
         if len(df) > self.max_series_length:
@@ -52,7 +55,7 @@ class PMDARIMAStrategy(BaseStrategy):
             df = df.rolling(window=freq, min_periods=1).mean().iloc[::freq]
             logger.debug(f"Downsampled series from {len(samples)} to {len(df)} points")
 
-        return df['value']
+        return df["value"]
 
     def _get_series_stats(self, series: pd.Series) -> tuple:
         """Get statistical features of the series."""
@@ -63,7 +66,7 @@ class PMDARIMAStrategy(BaseStrategy):
             float(np.std(values)),
             float(np.percentile(values, 95)),
             len(values),
-            bool(np.any(np.isnan(values)))
+            bool(np.any(np.isnan(values))),
         )
 
     def _fit_and_predict(self, series: pd.Series) -> tuple[float, float]:
@@ -78,12 +81,12 @@ class PMDARIMAStrategy(BaseStrategy):
                 logger.debug("Using cached model")
             else:
                 # Quick differencing test with early stopping
-                n_diffs = min(ndiffs(series, alpha=0.05, test='adf', max_d=2), 1)
+                n_diffs = min(ndiffs(series, alpha=0.05, test="adf", max_d=2), 1)
 
                 # Fit auto ARIMA model with optimized settings
                 model = auto_arima(
                     series,
-                    start_p=0,        # Start with simpler models
+                    start_p=0,  # Start with simpler models
                     start_q=0,
                     max_p=2,
                     max_q=2,
@@ -94,16 +97,16 @@ class PMDARIMAStrategy(BaseStrategy):
                     max_P=1,
                     max_Q=1,
                     trace=False,
-                    error_action='ignore',
+                    error_action="ignore",
                     suppress_warnings=True,
                     stepwise=True,
                     n_jobs=-1,
                     random_state=42,
                     maxiter=10,
-                    information_criterion='aic',  # Faster than bic
-                    method='lbfgs',              # Faster optimization
-                    with_intercept=True,         # Allow intercept for better fit
-                    max_order=4                  # Limit total parameters
+                    information_criterion="aic",  # Faster than bic
+                    method="lbfgs",  # Faster optimization
+                    with_intercept=True,  # Allow intercept for better fit
+                    max_order=4,  # Limit total parameters
                 )
 
                 # Cache the model
@@ -111,14 +114,15 @@ class PMDARIMAStrategy(BaseStrategy):
 
                 # Limit cache size with LRU policy
                 if len(self._model_cache) > 100:
-                    oldest_key = min(self._model_cache.keys(), key=lambda k: self._model_cache[k].fit_time_)
+                    oldest_key = min(
+                        self._model_cache.keys(),
+                        key=lambda k: self._model_cache[k].fit_time_,
+                    )
                     self._model_cache.pop(oldest_key)
 
             # Make prediction with confidence interval
             forecast, conf_int = model.predict(
-                n_periods=self.forecast_steps,
-                return_conf_int=True,
-                alpha=0.05
+                n_periods=self.forecast_steps, return_conf_int=True, alpha=0.05
             )
 
             return forecast[-1], conf_int[-1][1]
@@ -127,7 +131,9 @@ class PMDARIMAStrategy(BaseStrategy):
             logger.warning(f"ARIMA model fitting failed: {str(e)}")
             return None, None
 
-    def calculate_cpu_request(self, cpu_samples: List[float], timestamps: Optional[List[float]] = None) -> float:
+    def calculate_cpu_request(
+        self, cpu_samples: List[float], timestamps: Optional[List[float]] = None
+    ) -> float:
         if not cpu_samples or not timestamps:
             return self.config.min_cpu_cores
 
@@ -148,10 +154,14 @@ class PMDARIMAStrategy(BaseStrategy):
             return max(recommended * 1.1, self.config.min_cpu_cores)
 
         except Exception as e:
-            logger.warning(f"CPU prediction failed: {str(e)}. Falling back to percentile.")
+            logger.warning(
+                f"CPU prediction failed: {str(e)}. Falling back to percentile."
+            )
             return max(np.percentile(cpu_samples, 95) * 1.1, self.config.min_cpu_cores)
 
-    def calculate_memory_request(self, memory_samples: List[float], timestamps: Optional[List[float]] = None) -> float:
+    def calculate_memory_request(
+        self, memory_samples: List[float], timestamps: Optional[List[float]] = None
+    ) -> float:
         if not memory_samples or not timestamps:
             return self.config.min_memory_bytes
 
@@ -172,5 +182,10 @@ class PMDARIMAStrategy(BaseStrategy):
             return max(recommended, self.config.min_memory_bytes)
 
         except Exception as e:
-            logger.warning(f"Memory prediction failed: {str(e)}. Falling back to peak usage.")
-            return max(max(memory_samples) * self.config.memory_buffer, self.config.min_memory_bytes)
+            logger.warning(
+                f"Memory prediction failed: {str(e)}. Falling back to peak usage."
+            )
+            return max(
+                max(memory_samples) * self.config.memory_buffer,
+                self.config.min_memory_bytes,
+            )

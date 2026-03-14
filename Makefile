@@ -13,3 +13,13 @@ help: ## Show this help
 docker-build: ## Build Docker image locally
 	@docker build $(DOCKER_BUILD_ARGS) -t $(IMAGE):$(VERSION) -f $(DOCKERFILE) .
 
+## @ Development
+.PHONY: pre-commit-run pre-commit-install pre-commit-update
+pre-commit-run: ## Run pre-commit hooks
+	@uv run prek run --all-files
+
+pre-commit-install: ## Install pre-commit hooks
+	@uv run prek install
+
+pre-commit-update: ## Update pre-commit hooks
+	@uv run prek autoupdate

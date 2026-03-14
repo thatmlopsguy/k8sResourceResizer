@@ -3,6 +3,14 @@ __pycache__
 *.pyc
 *.pyo
 *.pyd
+.venv/
+venv/
+build/
+dist/
+*.egg-info/
+
+# ruff
+.ruff_cache/
 
 # Exclude development files
 .git
@@ -19,3 +27,4 @@ cache/
 .github/
 docs/
 tests/
+logs/

@@ -17,7 +17,6 @@ from logger import logger
 import json
 from typing import Optional, List, Dict, Any
 from utils import handle_exceptions
-import shutil
 from pathlib import Path
 
 
@@ -29,16 +28,21 @@ def apply_manifest(manifest_path: str) -> None:
     if not manifest_path.is_file():
         raise ValueError(f"Invalid manifest path: {manifest_path}")
 
-    kubectl= "/usr/local/bin/kubectl"
+    kubectl = "/usr/local/bin/kubectl"
 
     logger.info(f"Applying manifest: {manifest_path}")
     result = subprocess.run(
-        [kubectl, "apply", "-f", str(manifest_path)],  # Using full path from shutil.which
+        [
+            kubectl,
+            "apply",
+            "-f",
+            str(manifest_path),
+        ],  # Using full path from shutil.which
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
         text=True,
         check=False,
-        shell=False
+        shell=False,
     )
 
     if result.returncode != 0:
@@ -54,14 +58,17 @@ def get_argocd_instance() -> Optional[List[Dict[str, Any]]]:
 
     result = subprocess.run(
         [
-            argocd_bin, "app", "list",  # Using full path
-            "-o", "json"
+            argocd_bin,
+            "app",
+            "list",  # Using full path
+            "-o",
+            "json",
         ],
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
         text=True,
         check=False,
-        shell=False
+        shell=False,
     )
 
     if result.stdout:
@@ -78,22 +85,20 @@ def get_argocd_instance() -> Optional[List[Dict[str, Any]]]:
 def get_argocd_app_git_path(argocd_app: str) -> Optional[tuple[str, str]]:
     """Use ArgoCD CLI to get the app's Git repo and path."""
     result = subprocess.run(
-        [
-            "argocd", "app", "get",
-            argocd_app,
-            "--output", "json"
-        ],
+        ["argocd", "app", "get", argocd_app, "--output", "json"],
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
         text=True,
-        check=False
+        check=False,
     )
 
     if result.stdout:
         json_data = json.loads(result.stdout)
         repo_url = json_data["spec"]["source"]["repoURL"]
         path = json_data["spec"]["source"]["path"]
-        logger.debug(f"Found Git repo {repo_url} and path {path} for ArgoCD app {argocd_app}")
+        logger.debug(
+            f"Found Git repo {repo_url} and path {path} for ArgoCD app {argocd_app}"
+        )
         return repo_url, path
 
     logger.debug(f"No Git repo and path found for ArgoCD app {argocd_app}")

@@ -1,6 +1,6 @@
 # Docker Environment for K8s Resource Optimization
 
-A Docker environment for running the Kubernetes Resource Optimizer with k3d, kubectl, and Argo CD. 
+A Docker environment for running the Kubernetes Resource Optimizer with k3d, kubectl, and Argo CD.
 The setup runs without privileged mode for security and CI/CD platform compatibility.
 
 ## Features

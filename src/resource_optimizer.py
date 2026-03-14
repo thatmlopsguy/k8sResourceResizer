@@ -8,18 +8,17 @@ This module provides functionality to:
 """
 
 from datetime import datetime, timedelta
-import numpy as np
-import json
-import os
 from severity import Severity
 from logger import logger
 from typing import Optional
-from amp_client import AMP
-from utils import handle_exceptions, ensure_directory_exists
+
+# from amp_client import AMP
+from utils import handle_exceptions
 from strategy import BasicStrategy
 
+
 class ResourceOptimizer:
-    def __init__(self, workspace_id: str, region: str, strategy: 'BasicStrategy'):
+    def __init__(self, workspace_id: str, region: str, strategy: "BasicStrategy"):
         """
         Initialize the resource optimizer.
 
@@ -29,30 +28,41 @@ class ResourceOptimizer:
             strategy: Strategy instance for generating recommendations
         """
         logger.info("Initializing resource optimizer")
-        self.amp = AMP(workspace_id, region)
+        # self.amp = AMP(workspace_id, region)
         self.strategy = strategy
-        logger.info(f"Successfully initialized resource optimizer with strategy: {strategy.__class__.__name__}")
+        logger.info(
+            f"Successfully initialized resource optimizer with strategy: {strategy.__class__.__name__}"
+        )
 
     @handle_exceptions
     def get_deployments(self) -> list:
         """Get all deployments in the cluster."""
         logger.info("Getting all deployments in the cluster")
-        query = 'kube_deployment_spec_replicas != 0'
+        # If AMP client isn't configured, return an empty list instead of failing
+        if not hasattr(self, "amp") or self.amp is None:
+            logger.warning(
+                "AMP client not configured; returning empty deployments list"
+            )
+            return []
+
+        query = "kube_deployment_spec_replicas != 0"
         result = self.amp.query(query)
 
         deployments = [
             {
-                'namespace': deployment['metric']['namespace'],
-                'name': deployment['metric']['deployment']
+                "namespace": deployment["metric"]["namespace"],
+                "name": deployment["metric"]["deployment"],
             }
-            for deployment in result['data']['result']
+            for deployment in result.get("data", {}).get("result", [])
         ]
 
         logger.info(f"Found {len(deployments)} deployments")
         return deployments
 
     @handle_exceptions
-    def get_historical_usage(self, namespace: str, deployment: str, container: str) -> dict:
+    def get_historical_usage(
+        self, namespace: str, deployment: str, container: str
+    ) -> dict:
         """Get historical CPU and memory usage for a deployment."""
         logger.debug(f"Getting historical usage for {deployment} in {namespace}")
 
@@ -85,17 +95,11 @@ class ResourceOptimizer:
 
         # Get historical data
         cpu_data = self.amp.query_range(
-            query=cpu_query,
-            start=start_timestamp,
-            end=end_timestamp,
-            step='5m'
+            query=cpu_query, start=start_timestamp, end=end_timestamp, step="5m"
         )
 
         memory_data = self.amp.query_range(
-            query=memory_query,
-            start=start_timestamp,
-            end=end_timestamp,
-            step='5m'
+            query=memory_query, start=start_timestamp, end=end_timestamp, step="5m"
         )
 
         # Extract values and timestamps
@@ -103,22 +107,24 @@ class ResourceOptimizer:
         memory_samples = []
         timestamps = []
 
-        if cpu_data.get('data', {}).get('result'):
-            for point in cpu_data['data']['result'][0]['values']:
+        if cpu_data.get("data", {}).get("result"):
+            for point in cpu_data["data"]["result"][0]["values"]:
                 timestamps.append(float(point[0]))
                 cpu_samples.append(float(point[1]))
 
-        if memory_data.get('data', {}).get('result'):
-            for point in memory_data['data']['result'][0]['values']:
+        if memory_data.get("data", {}).get("result"):
+            for point in memory_data["data"]["result"][0]["values"]:
                 memory_samples.append(float(point[1]))
 
         return {
-            'cpu_samples': cpu_samples,
-            'memory_samples': memory_samples,
-            'timestamps': timestamps
+            "cpu_samples": cpu_samples,
+            "memory_samples": memory_samples,
+            "timestamps": timestamps,
         }
 
-    def _determine_severity(self, current: Optional[float], recommended: Optional[float]) -> Severity:
+    def _determine_severity(
+        self, current: Optional[float], recommended: Optional[float]
+    ) -> Severity:
         """Determine severity level based on difference between current and recommended values."""
         if current is None and recommended is None:
             return Severity.GOOD
@@ -190,8 +196,8 @@ class ResourceOptimizer:
         # Get recommendations for each deployment
         recommendations = {}
         for deployment in deployments:
-            namespace = deployment['namespace']
-            name = deployment['name']
+            namespace = deployment["namespace"]
+            name = deployment["name"]
             deployment_key = f"{namespace}/{name}"
 
             # Get containers in deployment
@@ -201,10 +207,12 @@ class ResourceOptimizer:
             }}'''
             result = self.amp.query(query)
 
-            containers = list({
-                container['metric']['container']
-                for container in result['data']['result']
-            })
+            containers = list(
+                {
+                    container["metric"]["container"]
+                    for container in result["data"]["result"]
+                }
+            )
 
             logger.info(f"Found {len(containers)} containers in deployment {name}")
 
@@ -215,14 +223,12 @@ class ResourceOptimizer:
                 # Calculate and validate requests
                 cpu_request = self._validate_cpu_request(
                     self.strategy.calculate_cpu_request(
-                        usage['cpu_samples'],
-                        usage['timestamps']
+                        usage["cpu_samples"], usage["timestamps"]
                     )
                 )
                 memory_request = self._validate_memory_request(
                     self.strategy.calculate_memory_request(
-                        usage['memory_samples'],
-                        usage['timestamps']
+                        usage["memory_samples"], usage["timestamps"]
                     )
                 )
 
@@ -232,40 +238,46 @@ class ResourceOptimizer:
 
                 container_key = f"{deployment_key}/{container}"
                 recommendations[container_key] = {
-                    'object': {
-                        'namespace': namespace,
-                        'name': name,
-                        'container': container
+                    "object": {
+                        "namespace": namespace,
+                        "name": name,
+                        "container": container,
                     },
-                    'recommended': {
-                        'requests': {
-                            'cpu': {
-                                'value': cpu_request,
-                                'severity': self._determine_severity(None, cpu_request)
+                    "recommended": {
+                        "requests": {
+                            "cpu": {
+                                "value": cpu_request,
+                                "severity": self._determine_severity(None, cpu_request),
                             },
-                            'memory': {
-                                'value': memory_request,
-                                'severity': self._determine_severity(None, memory_request)
-                            }
+                            "memory": {
+                                "value": memory_request,
+                                "severity": self._determine_severity(
+                                    None, memory_request
+                                ),
+                            },
                         },
-                        'limits': {
-                            'cpu': {
-                                'value': cpu_limit,
-                                'severity': self._determine_severity(None, cpu_limit)
+                        "limits": {
+                            "cpu": {
+                                "value": cpu_limit,
+                                "severity": self._determine_severity(None, cpu_limit),
                             },
-                            'memory': {
-                                'value': memory_limit,
-                                'severity': self._determine_severity(None, memory_limit)
-                            }
-                        }
-                    }
+                            "memory": {
+                                "value": memory_limit,
+                                "severity": self._determine_severity(
+                                    None, memory_limit
+                                ),
+                            },
+                        },
+                    },
                 }
 
         logger.info(f"Generated recommendations for {len(recommendations)} containers")
         return recommendations
 
     @handle_exceptions
-    def prepare_recommendations_to_save(self, recommendations: dict, updated_deployments: list[dict] = None) -> dict:
+    def prepare_recommendations_to_save(
+        self, recommendations: dict, updated_deployments: list[dict] = None
+    ) -> dict:
         """
         Prepare recommendations data structure for saving.
 
@@ -278,7 +290,9 @@ class ResourceOptimizer:
         """
         # Get strategy description from docstring
         if self.strategy.__doc__:
-            paragraphs = [p.strip() for p in self.strategy.__doc__.split('\n\n') if p.strip()]
+            paragraphs = [
+                p.strip() for p in self.strategy.__doc__.split("\n\n") if p.strip()
+            ]
             strategy_description = paragraphs[0] if paragraphs else ""
         else:
             strategy_description = ""
@@ -296,15 +310,12 @@ class ResourceOptimizer:
                     "business_hours": {
                         "start": self.strategy.config.business_hours_start,
                         "end": self.strategy.config.business_hours_end,
-                        "days": self.strategy.config.business_days
-                    }
-                }
+                        "days": self.strategy.config.business_days,
+                    },
+                },
             },
-            "updated_deployments": updated_deployments or []
+            "updated_deployments": updated_deployments or [],
         }
 
         # Create the final output structure
-        return {
-            "metadata": metadata,
-            "recommendations": recommendations
-        }
+        return {"metadata": metadata, "recommendations": recommendations}

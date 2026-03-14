@@ -22,20 +22,23 @@ from argocd_client import apply_manifest
 import json
 import secrets
 from prompt_creator import build_model_prompt, python_incontext_learning
-from pr_opener import clone_github_repo, invoke_bedrock_model, create_and_switch_to_branch, create_github_pull_request, commit_and_push_changes
+from pr_opener import (
+    clone_github_repo,
+    invoke_bedrock_model,
+    create_and_switch_to_branch,
+    create_github_pull_request,
+    commit_and_push_changes,
+)
 import tempfile
 
 # Add the Src directory to Python path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from strategy import (
-    RecommendationStrategy,
-    RecommendationConfig,
-    StrategyFactory
-)
+from strategy import RecommendationStrategy, RecommendationConfig, StrategyFactory
 
 # Load environment variables from .env file
 load_dotenv()
+
 
 @click.command()
 @click.option(
@@ -45,7 +48,9 @@ load_dotenv()
 )
 @click.option(
     "--output",
-    default=os.path.join(os.path.dirname(os.path.dirname(__file__)), "/tmp/TEMP", "output.yaml"),
+    default=os.path.join(
+        os.path.dirname(os.path.dirname(__file__)), "/tmp/TEMP", "output.yaml"
+    ),
     help="Path to save modified YAML. Default: ../TEMP/output.yaml",
 )
 @click.option("--debug", is_flag=True, help="Enable debug mode. Default: False")
@@ -74,7 +79,9 @@ load_dotenv()
     help="Historical data window (e.g., 24h, 7d, 8w, 1yr). Default: 24h",
 )
 @handle_exceptions
-def main(directory, output, debug, strategy, cpu_percentile, memory_buffer, history_window):
+def main(
+    directory, output, debug, strategy, cpu_percentile, memory_buffer, history_window
+):
     """Main function to run the resource optimization process."""
     # Initialize logger with debug flag
     logger = setup_logger(debug=debug)
@@ -89,7 +96,7 @@ def main(directory, output, debug, strategy, cpu_percentile, memory_buffer, hist
         sys.exit(1)
 
     # Create TEMP directory
-    temp_base = tempfile.mkdtemp(prefix='k8s_resource_')
+    temp_base = tempfile.mkdtemp(prefix="k8s_resource_")
     temp_dir = os.path.join(temp_base, "TEMP")
     os.makedirs(temp_dir, exist_ok=True)
 
@@ -98,12 +105,14 @@ def main(directory, output, debug, strategy, cpu_percentile, memory_buffer, hist
         strategy=RecommendationStrategy(strategy),
         cpu_percentile=cpu_percentile,
         memory_buffer=memory_buffer,
-        business_hours_start=int(os.getenv('BUSINESS_HOURS_START', '9')),
-        business_hours_end=int(os.getenv('BUSINESS_HOURS_END', '17')),
-        business_days=[int(d) for d in os.getenv('BUSINESS_DAYS', '0,1,2,3,4').split(',')],
-        trend_threshold=float(os.getenv('TREND_THRESHOLD', '0.1')),
-        high_variance_threshold=float(os.getenv('HIGH_VARIANCE_THRESHOLD', '0.5')),
-        history_window_hours=history_hours
+        business_hours_start=int(os.getenv("BUSINESS_HOURS_START", "9")),
+        business_hours_end=int(os.getenv("BUSINESS_HOURS_END", "17")),
+        business_days=[
+            int(d) for d in os.getenv("BUSINESS_DAYS", "0,1,2,3,4").split(",")
+        ],
+        trend_threshold=float(os.getenv("TREND_THRESHOLD", "0.1")),
+        high_variance_threshold=float(os.getenv("HIGH_VARIANCE_THRESHOLD", "0.5")),
+        history_window_hours=history_hours,
     )
 
     # Create strategy instance
@@ -115,7 +124,7 @@ def main(directory, output, debug, strategy, cpu_percentile, memory_buffer, hist
 
     # Write to TEMP/output.yaml
     with open(output, "w") as f:
-            f.write(modified_yaml)
+        f.write(modified_yaml)
     logger.info(f"Modified YAML saved to: {output}")
 
     # Apply the manifest
@@ -124,9 +133,9 @@ def main(directory, output, debug, strategy, cpu_percentile, memory_buffer, hist
 
     # Initialize the resource optimizer with strategy
     optimizer = ResourceOptimizer(
-        workspace_id=os.getenv('AMP_WORKSPACE_ID'),
-        region=os.getenv('AWS_REGION'),
-        strategy=strategy_instance
+        workspace_id=os.getenv("AMP_WORKSPACE_ID"),
+        region=os.getenv("AWS_REGION"),
+        strategy=strategy_instance,
     )
 
     # Generate recommendations
@@ -138,11 +147,13 @@ def main(directory, output, debug, strategy, cpu_percentile, memory_buffer, hist
 
     # Prepare recommendations data structure
     logger.info("Preparing recommendations data structure")
-    recommendations_data = optimizer.prepare_recommendations_to_save(recommendations, updated_deployments)
+    recommendations_data = optimizer.prepare_recommendations_to_save(
+        recommendations, updated_deployments
+    )
 
     # Save recommendations to file
     logger.info(f"Using TEMP directory: {temp_dir}")
-    with open(os.path.join(temp_dir, "recommendations.json"), 'w') as f:
+    with open(os.path.join(temp_dir, "recommendations.json"), "w") as f:
         json.dump(recommendations_data, f, indent=2)
 
     logger.info("Resource optimization process completed")
@@ -151,7 +162,7 @@ def main(directory, output, debug, strategy, cpu_percentile, memory_buffer, hist
 
     github_username = os.getenv("GITHUB_USERNAME")
     repo_name = os.getenv("GITHUB_REPOSITORY_NAME")
-    github_token = os.environ.get('GIT_TOKEN')
+    github_token = os.environ.get("GIT_TOKEN")
     if not github_token:
         raise ValueError("GITHUB_TOKEN environment variable is not set")
 
@@ -162,7 +173,9 @@ def main(directory, output, debug, strategy, cpu_percentile, memory_buffer, hist
     clone_github_repo(repo_url, local_dir)
 
     model_prompt = build_model_prompt(recommendations_data, repo_name)
-    final_model_prompt = python_incontext_learning + model_prompt # Adding in-context learning
+    final_model_prompt = (
+        python_incontext_learning + model_prompt
+    )  # Adding in-context learning
     region = os.getenv("AWS_REGION")
     response_for_pr_description = invoke_bedrock_model(final_model_prompt, region)
 
@@ -170,12 +183,17 @@ def main(directory, output, debug, strategy, cpu_percentile, memory_buffer, hist
     create_and_switch_to_branch(local_dir, new_branch_name)
     commit_and_push_changes(recommendations_data, local_dir, new_branch_name, repo_url)
 
-
     source_branch = new_branch_name
     destination_branch = "main"
     title = "K8s manifest resource usage updates, please take a look and update with the following recommendations"
 
-    create_github_pull_request(repository_full_name, source_branch, destination_branch, title, response_for_pr_description)
+    create_github_pull_request(
+        repository_full_name,
+        source_branch,
+        destination_branch,
+        title,
+        response_for_pr_description,
+    )
     logger.info("Automation process finished successfully")
 
 

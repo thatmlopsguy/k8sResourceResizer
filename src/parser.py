@@ -61,11 +61,15 @@ def parse_selector(selector: Optional[str]) -> Dict[str, str]:
         key, value = selector.split("=")
         return {key.strip(): value.strip()}
     except ValueError:
-        logger.error(f"Invalid selector format: {selector}. Expected format: 'key=value'.")
+        logger.error(
+            f"Invalid selector format: {selector}. Expected format: 'key=value'."
+        )
         return {}
 
 
-def get_applications(resources: List[K8sResource], selector: Optional[str] = None) -> List[Application]:
+def get_applications(
+    resources: List[K8sResource], selector: Optional[str] = None
+) -> List[Application]:
     """
     Filter and return applications from K8s resources based on the selector.
     """
@@ -81,11 +85,15 @@ def get_applications(resources: List[K8sResource], selector: Optional[str] = Non
         labels = metadata.get("labels", {})
 
         # Filter based on selector
-        if parsed_selector and not all(labels.get(k) == v for k, v in parsed_selector.items()):
+        if parsed_selector and not all(
+            labels.get(k) == v for k, v in parsed_selector.items()
+        ):
             logger.debug(f"Ignoring {metadata.get('name')} due to selector mismatch")
             continue
 
-        applications.append(Application(resource.file_name, resource.yaml_content, kind))
+        applications.append(
+            Application(resource.file_name, resource.yaml_content, kind)
+        )
 
     return applications
 

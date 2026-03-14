@@ -10,6 +10,7 @@ from .pmdarima_strategy import PMDARIMAStrategy
 from .prophet_strategy import ProphetStrategy
 from .ensemble_strategy import EnsembleStrategy
 
+
 class StrategyFactory:
     @staticmethod
     def create_strategy(config: RecommendationConfig):
@@ -23,7 +24,7 @@ class StrategyFactory:
             RecommendationStrategy.MOVING_AVERAGE: MovingAverageStrategy,
             RecommendationStrategy.PMDARIMA: PMDARIMAStrategy,
             RecommendationStrategy.PROPHET: ProphetStrategy,
-            RecommendationStrategy.ENSEMBLE: EnsembleStrategy
+            RecommendationStrategy.ENSEMBLE: EnsembleStrategy,
         }
 
         strategy_class = strategies.get(config.strategy)

@@ -1,17 +1,21 @@
 from abc import ABC, abstractmethod
-from typing import List, Optional, Dict
+from typing import List, Optional
 from . import RecommendationConfig
+
 
 class BaseStrategy(ABC):
     """
     Abstract base class for all recommendation strategies.
     Each strategy must implement calculate_cpu_request and calculate_memory_request methods.
     """
+
     def __init__(self, config: RecommendationConfig):
         self.config = config
 
     @abstractmethod
-    def calculate_cpu_request(self, cpu_samples: List[float], timestamps: Optional[List[float]] = None) -> float:
+    def calculate_cpu_request(
+        self, cpu_samples: List[float], timestamps: Optional[List[float]] = None
+    ) -> float:
         """
         Calculate the recommended CPU request based on usage samples.
 
@@ -25,7 +29,9 @@ class BaseStrategy(ABC):
         pass
 
     @abstractmethod
-    def calculate_memory_request(self, memory_samples: List[float], timestamps: Optional[List[float]] = None) -> float:
+    def calculate_memory_request(
+        self, memory_samples: List[float], timestamps: Optional[List[float]] = None
+    ) -> float:
         """
         Calculate the recommended memory request based on usage samples.
 

@@ -2,6 +2,7 @@ import numpy as np
 from typing import List, Optional
 from .base_strategy import BaseStrategy
 
+
 class BasicStrategy(BaseStrategy):
     """
     Basic resource recommendation strategy that uses simple statistical methods.
@@ -13,7 +14,9 @@ class BasicStrategy(BaseStrategy):
     - No time-based analysis or trend detection
     """
 
-    def calculate_cpu_request(self, cpu_samples: List[float], timestamps: Optional[List[float]] = None) -> float:
+    def calculate_cpu_request(
+        self, cpu_samples: List[float], timestamps: Optional[List[float]] = None
+    ) -> float:
         """
         Calculate CPU request using 95th percentile with a 10% safety buffer.
 
@@ -32,7 +35,9 @@ class BasicStrategy(BaseStrategy):
 
         return max(p95 * safety_buffer, self.config.min_cpu_cores)
 
-    def calculate_memory_request(self, memory_samples: List[float], timestamps: Optional[List[float]] = None) -> float:
+    def calculate_memory_request(
+        self, memory_samples: List[float], timestamps: Optional[List[float]] = None
+    ) -> float:
         """
         Calculate memory request using peak usage with configurable buffer.
 

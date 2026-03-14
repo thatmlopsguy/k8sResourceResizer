@@ -1,4 +1,3 @@
-from collections import defaultdict
 import yaml
 
 python_incontext_learning = """
@@ -246,6 +245,7 @@ Remember to thoroughly test your application after implementing these changes to
 Prompt for the model:
 """
 
+
 def build_model_prompt(recommendations, repo_name):
     """
     Build the model prompt for Bedrock with inputs from recommendation, instructions, and updated manifest files
@@ -256,34 +256,41 @@ def build_model_prompt(recommendations, repo_name):
 
     prompt = f"Application: {repo_name}\n\Recommendations:\n"
     prompt += f"Recommendations: {recommendations}\n"
-    prompt += f"- Updated kubernetes manifest file location: {updated_file_paths_relative}\n"
+    prompt += (
+        f"- Updated kubernetes manifest file location: {updated_file_paths_relative}\n"
+    )
     prompt += f"  Updated kubernetes manifest file content: {updated_file_contents}\n"
-    prompt += f"Analyze the recommendations and the updated kubernetes manifest files with the new resource usage values according to the example and instructions below.\n"
+    prompt += "Analyze the recommendations and the updated kubernetes manifest files with the new resource usage values according to the example and instructions below.\n"
 
     return prompt
+
 
 def get_updated_file_paths(recommendations):
     # Initialize an empty list to store the values
     updated_file_paths = []
-    for deployment in recommendations['metadata']['updated_deployments']:
-      updated_file_paths.append(deployment['updated_file'])
+    for deployment in recommendations["metadata"]["updated_deployments"]:
+        updated_file_paths.append(deployment["updated_file"])
 
     return updated_file_paths
+
 
 def get_updated_file_paths_relative(recommendations):
     # Initialize an empty list to store the values
     updated_file_paths_relative = []
-    for deployment in recommendations['metadata']['updated_deployments']:
-      values_file_path_relative = deployment['updated_file'].split(f"/app/manifests/", 1)[1]
-      updated_file_paths_relative.append(values_file_path_relative)
+    for deployment in recommendations["metadata"]["updated_deployments"]:
+        values_file_path_relative = deployment["updated_file"].split(
+            "/app/manifests/", 1
+        )[1]
+        updated_file_paths_relative.append(values_file_path_relative)
 
     return updated_file_paths_relative
+
 
 def get_updated_file_contents(recommendations):
     # Initialize an empty list to store the values
     updated_file_content = []
-    for deployment in recommendations['metadata']['updated_deployments']:
-      with open(deployment['updated_file'], 'r') as file:
-        updated_file_content.append(yaml.safe_load(file))
+    for deployment in recommendations["metadata"]["updated_deployments"]:
+        with open(deployment["updated_file"], "r") as file:
+            updated_file_content.append(yaml.safe_load(file))
 
     return updated_file_content

@@ -10,6 +10,7 @@ This module defines the severity levels used to indicate:
 
 from enum import Enum
 
+
 class Severity(str, Enum):
     CRITICAL = "CRITICAL"
     WARNING = "WARNING"

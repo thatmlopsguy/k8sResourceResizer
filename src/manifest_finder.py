@@ -65,7 +65,9 @@ def parse_selector(selector: Optional[str]) -> Dict[str, str]:
 
 
 @handle_exceptions
-def get_applications(resources: List[dict], selector: Optional[str] = None) -> List[dict]:
+def get_applications(
+    resources: List[dict], selector: Optional[str] = None
+) -> List[dict]:
     """
     Filter and return applications from K8s resources based on the selector.
     """
@@ -81,7 +83,9 @@ def get_applications(resources: List[dict], selector: Optional[str] = None) -> L
         labels = metadata.get("labels", {})
 
         # Filter based on selector
-        if parsed_selector and not all(labels.get(k) == v for k, v in parsed_selector.items()):
+        if parsed_selector and not all(
+            labels.get(k) == v for k, v in parsed_selector.items()
+        ):
             logger.debug(f"Ignoring {metadata.get('name')} due to selector mismatch")
             continue
 
@@ -105,9 +109,7 @@ def patch_applications(applications: List[dict]) -> str:
             spec["destination"].pop("server", None)
         spec["project"] = "default"
         spec.pop("syncPolicy", None)
-        spec["syncPolicy"] = {
-            "syncOptions": ["CreateNamespace=true"]
-        }
+        spec["syncPolicy"] = {"syncOptions": ["CreateNamespace=true"]}
 
     output = "\n---\n".join([yaml.dump(app) for app in applications])
     return output
@@ -130,15 +132,15 @@ def get_applications_as_string(directory: str, selector: Optional[str] = None) -
             spec["destination"].pop("server", None)
         spec["project"] = "default"
         spec.pop("syncPolicy", None)  # Remove existing sync policy
-        spec["syncPolicy"] = {
-            "syncOptions": ["CreateNamespace=true"]
-        }
+        spec["syncPolicy"] = {"syncOptions": ["CreateNamespace=true"]}
 
     return yaml.dump_all([app for app in applications])
 
 
 @handle_exceptions
-def find_helm_resource_files(base_dir: str, path: str, helm_values: list[str], deployment_name: str) -> Optional[str]:
+def find_helm_resource_files(
+    base_dir: str, path: str, helm_values: list[str], deployment_name: str
+) -> Optional[str]:
     """Find resource definitions in Helm values files."""
     logger.debug(f"Looking for Helm values files in {base_dir}/{path}")
 
@@ -148,22 +150,24 @@ def find_helm_resource_files(base_dir: str, path: str, helm_values: list[str], d
         if not os.path.exists(full_path):
             continue
 
-        with open(full_path, 'r') as f:
+        with open(full_path, "r") as f:
             try:
                 content = yaml.safe_load(f)
-                if content and 'resources' in content:
+                if content and "resources" in content:
                     logger.debug(f"Found resource definitions in {full_path}")
                     return full_path
             except yaml.YAMLError:
                 logger.warning(f"Error parsing YAML in {full_path}")
                 continue
 
-    logger.debug(f"No Helm values files found with resource definitions")
+    logger.debug("No Helm values files found with resource definitions")
     return None
 
 
 @handle_exceptions
-def find_kustomize_resource_files(base_dir: str, path: str, deployment_name: str) -> Optional[str]:
+def find_kustomize_resource_files(
+    base_dir: str, path: str, deployment_name: str
+) -> Optional[str]:
     """Find resource definitions in Kustomize files."""
     logger.debug(f"Looking for Kustomize files in {base_dir}/{path}")
     logger.debug(f"Searching for deployment: {deployment_name}")
@@ -179,9 +183,11 @@ def find_kustomize_resource_files(base_dir: str, path: str, deployment_name: str
             return None
 
     try:
-        with open(kustomization_path, 'r') as f:
+        with open(kustomization_path, "r") as f:
             content = yaml.safe_load(f)
-            logger.debug(f"Loaded kustomization content: {json.dumps(content, indent=2)}")
+            logger.debug(
+                f"Loaded kustomization content: {json.dumps(content, indent=2)}"
+            )
 
             if not content:
                 logger.debug("Empty kustomization file")
@@ -194,24 +200,33 @@ def find_kustomize_resource_files(base_dir: str, path: str, deployment_name: str
                     return None
 
                 try:
-                    with open(file_path, 'r') as f:
+                    with open(file_path, "r") as f:
                         file_content = yaml.safe_load(f)
                         if not file_content:
                             return None
 
                         # Check for resources in a deployment
-                        if file_content.get('kind') == 'Deployment':
-                            containers = file_content.get('spec', {}).get('template', {}).get('spec', {}).get('containers', [])
+                        if file_content.get("kind") == "Deployment":
+                            containers = (
+                                file_content.get("spec", {})
+                                .get("template", {})
+                                .get("spec", {})
+                                .get("containers", [])
+                            )
                             for container in containers:
-                                if 'resources' in container:
-                                    logger.debug(f"Found deployment with resources in {file_path}")
+                                if "resources" in container:
+                                    logger.debug(
+                                        f"Found deployment with resources in {file_path}"
+                                    )
                                     return file_path
 
                         # Check for resources in a patch
-                        if 'resources' in file_content:
-                            resources = file_content.get('resources', {})
-                            if 'limits' in resources or 'requests' in resources:
-                                logger.debug(f"Found patch with resource definitions in {file_path}")
+                        if "resources" in file_content:
+                            resources = file_content.get("resources", {})
+                            if "limits" in resources or "requests" in resources:
+                                logger.debug(
+                                    f"Found patch with resource definitions in {file_path}"
+                                )
                                 return file_path
 
                 except Exception as e:
@@ -222,25 +237,29 @@ def find_kustomize_resource_files(base_dir: str, path: str, deployment_name: str
             all_files = []
 
             # Add resources
-            resources = content.get('resources', [])
+            resources = content.get("resources", [])
             logger.debug(f"Found resources in {kustomization_path}: {resources}")
             for resource in resources:
-                resource_path = os.path.abspath(os.path.join(os.path.dirname(kustomization_path), resource))
+                resource_path = os.path.abspath(
+                    os.path.join(os.path.dirname(kustomization_path), resource)
+                )
                 logger.debug(f"Adding resource path: {resource_path}")
                 all_files.append(resource_path)
 
             # Add patches
-            patches = content.get('patches', [])
+            patches = content.get("patches", [])
             logger.debug(f"Found patches in {kustomization_path}: {patches}")
             for patch in patches:
                 if isinstance(patch, dict):
-                    patch_path = patch.get('path')
+                    patch_path = patch.get("path")
                     logger.debug(f"Found patch dict with path: {patch_path}")
                 else:
                     patch_path = patch
                     logger.debug(f"Found patch string: {patch_path}")
                 if patch_path:
-                    patch_path = os.path.abspath(os.path.join(os.path.dirname(kustomization_path), patch_path))
+                    patch_path = os.path.abspath(
+                        os.path.join(os.path.dirname(kustomization_path), patch_path)
+                    )
                     logger.debug(f"Adding patch path: {patch_path}")
                     all_files.append(patch_path)
 
@@ -251,7 +270,9 @@ def find_kustomize_resource_files(base_dir: str, path: str, deployment_name: str
                     # If it's a directory, recursively check it
                     logger.debug(f"Checking directory: {file_path}")
                     relative_path = os.path.relpath(file_path, base_dir)
-                    result = find_kustomize_resource_files(base_dir, relative_path, deployment_name)
+                    result = find_kustomize_resource_files(
+                        base_dir, relative_path, deployment_name
+                    )
                     if result:
                         return result
                 else:
@@ -260,12 +281,16 @@ def find_kustomize_resource_files(base_dir: str, path: str, deployment_name: str
                         return result
 
             # Check bases if nothing found
-            bases = content.get('bases', [])
+            bases = content.get("bases", [])
             for base in bases:
-                base_path = os.path.abspath(os.path.join(os.path.dirname(kustomization_path), base))
+                base_path = os.path.abspath(
+                    os.path.join(os.path.dirname(kustomization_path), base)
+                )
                 if os.path.exists(base_path):
                     relative_path = os.path.relpath(base_path, base_dir)
-                    result = find_kustomize_resource_files(base_dir, relative_path, deployment_name)
+                    result = find_kustomize_resource_files(
+                        base_dir, relative_path, deployment_name
+                    )
                     if result:
                         return result
 
@@ -276,5 +301,5 @@ def find_kustomize_resource_files(base_dir: str, path: str, deployment_name: str
         logger.warning(f"Error processing {kustomization_path}: {str(e)}")
         return None
 
-    logger.debug(f"No Kustomize files found with resource definitions")
+    logger.debug("No Kustomize files found with resource definitions")
     return None

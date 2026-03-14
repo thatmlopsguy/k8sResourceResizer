@@ -33,7 +33,7 @@ or integrate it into CI/CD pipelines with GitHub Actions.
 ### 1. Build Docker image locally
 
 ```bash
-docker build --no-cache -t k8sresourceautoresizer -f docker/Dockerfile .
+docker build --no-cache -t k8sresourceautoresizer -f Dockerfile .
 ```
 
 ### 2. Run local development environment (interactive mode)
@@ -79,11 +79,9 @@ docker run -it \
     --memory-buffer 1.15 \
     --debug"
 ```
-
-
 ## CI/CD Configuration
 
-This project provides a [DOCKERFILE](./docker/Dockerfile), that you can use to build and run it on your preferred CI/CD tool.
+This project provides a [DOCKERFILE](Dockerfile), that you can use to build and run it on your preferred CI/CD tool.
 The `K8sLimitsAutoResizer` docker image is meant to run on CI/CD pipelines where you have your K8s manifests and ArgoCD projects.
 Check the `Docker`, `Usage`, and `Configuration` sections below.
 

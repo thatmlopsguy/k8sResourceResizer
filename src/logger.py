@@ -17,6 +17,7 @@ from loguru import logger
 import sys
 import os
 
+
 # Configure loguru logger
 def setup_logger(debug=False):
     """Configure the logger with a specific format and level"""
@@ -31,7 +32,7 @@ def setup_logger(debug=False):
         sys.stdout,
         format="<green>{time:YYYY-MM-DD HH:mm:ss}</green> | <level>{level: <8}</level> | <cyan>{name}</cyan>:<cyan>{function}</cyan>:<cyan>{line}</cyan> - <level>{message}</level>",
         level=console_level,
-        colorize=True
+        colorize=True,
     )
 
     # Add file handler for all logs
@@ -40,7 +41,7 @@ def setup_logger(debug=False):
         rotation="10 MB",
         retention="1 week",
         format="{time:YYYY-MM-DD HH:mm:ss} | {level: <8} | {name}:{function}:{line} - {message}",
-        level="DEBUG"  # Always keep DEBUG level for file logging
+        level="DEBUG",  # Always keep DEBUG level for file logging
     )
 
     # Log initial configuration

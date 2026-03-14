@@ -50,6 +50,9 @@ coverage.xml
 *.manifest
 *.spec
 
+# ruff
+.ruff_cache/
+
 # mypy
 .mypy_cache/
 
@@ -75,27 +78,5 @@ dist/
 *.temp
 *.swp
 
-# YAML files (if output should not be versioned)
-K8sResourceResizer/TEMP/*.yaml
-K8sResourceResizer/Docker/kube/
-kube/
-
-# Terraform files
-*.tfstate
-*.tfstate.*
-*.tfvars
-*.tfvars.json
-.terraform/
-.terraform.lock.hcl
-crash.log
-crash.*.log
-override.tf
-override.tf.json
-*_override.tf
-*_override.tf.json
-.terraformrc
-terraform.rc
-
-# TEMP folder
-TEMP/
-TEMP/*
+# logs
+logs/

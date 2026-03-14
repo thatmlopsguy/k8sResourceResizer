@@ -1,7 +1,7 @@
-import numpy as np
 import pandas as pd
 from typing import List, Optional
 from .base_strategy import BaseStrategy
+
 
 class MovingAverageStrategy(BaseStrategy):
     """
@@ -13,20 +13,26 @@ class MovingAverageStrategy(BaseStrategy):
     - Calculates prediction intervals using rolling standard deviation
     - Adapts to trend changes using momentum indicators
     """
+
     def _calculate_ewma(self, series: pd.Series, spans: List[int]) -> List[float]:
         """Calculate exponential weighted moving averages for multiple spans."""
         return [series.ewm(span=span, adjust=False).mean().iloc[-1] for span in spans]
 
-    def _calculate_prediction_interval(self, series: pd.Series, confidence: float = 0.95) -> float:
+    def _calculate_prediction_interval(
+        self, series: pd.Series, confidence: float = 0.95
+    ) -> float:
         """Calculate prediction interval using rolling statistics."""
         # Calculate rolling standard deviation
         rolling_std = series.rolling(window=min(len(series), 12)).std().iloc[-1]
         # Use t-distribution for small samples
         from scipy import stats
-        t_value = stats.t.ppf((1 + confidence) / 2, df=len(series)-1)
+
+        t_value = stats.t.ppf((1 + confidence) / 2, df=len(series) - 1)
         return rolling_std * t_value
 
-    def calculate_cpu_request(self, cpu_samples: List[float], timestamps: Optional[List[float]] = None) -> float:
+    def calculate_cpu_request(
+        self, cpu_samples: List[float], timestamps: Optional[List[float]] = None
+    ) -> float:
         if not cpu_samples:
             return self.config.min_cpu_cores
 
@@ -47,7 +53,9 @@ class MovingAverageStrategy(BaseStrategy):
 
         return max(recommended * 1.1, self.config.min_cpu_cores)
 
-    def calculate_memory_request(self, memory_samples: List[float], timestamps: Optional[List[float]] = None) -> float:
+    def calculate_memory_request(
+        self, memory_samples: List[float], timestamps: Optional[List[float]] = None
+    ) -> float:
         if not memory_samples:
             return self.config.min_memory_bytes
 
@@ -62,7 +70,11 @@ class MovingAverageStrategy(BaseStrategy):
         weighted_avg = 0.4 * medium_term + 0.6 * long_term
 
         # Add prediction interval with higher confidence for memory
-        prediction_interval = self._calculate_prediction_interval(series, confidence=0.99)
+        prediction_interval = self._calculate_prediction_interval(
+            series, confidence=0.99
+        )
         recommended = weighted_avg + prediction_interval
 
-        return max(recommended * self.config.memory_buffer, self.config.min_memory_bytes)
+        return max(
+            recommended * self.config.memory_buffer, self.config.min_memory_bytes
+        )
