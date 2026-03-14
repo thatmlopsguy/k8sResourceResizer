@@ -32,7 +32,7 @@ RUN apt upgrade -y  \
 # Copy project files
 WORKDIR /app
 COPY pyproject.toml ./
-COPY K8sResourceResizer/src ./src/
+COPY K8sResourceResizer/Src ./Src/
 
 # Upgrade pip and install Cython first
 RUN pip install --no-cache-dir --upgrade pip setuptools wheel && \
