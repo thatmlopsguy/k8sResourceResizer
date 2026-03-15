@@ -43,6 +43,8 @@ clean: ## Clean build artifacts and caches
 	@rm -rf .pytest_cache .mypy_cache .ruff_cache
 	@rm -rf tmp/
 	@rm -rf logs/*.log
+	@find . -type d -name "__pycache__" -exec rm -rf {} +
+	@find . -type f -name "*.pyc" -delete
 
 .PHONY: grafana-vm-ui grafana-vm-password grafana-ui grafana-password prometheus-ui vm-ui
 ##@ Observability
