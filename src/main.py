@@ -39,7 +39,7 @@ load_dotenv()
 @click.command()
 @click.option(
     "--directory",
-    default="tests/integration/kustomize",
+    default="tests/integration/helm",
     help="Directory containing YAML manifests. Default: tests/integration/kustomize",
 )
 @click.option(
@@ -106,7 +106,6 @@ def main(
     skip_pr,
 ):
     """Main function to run the resource optimization process."""
-    # Initialize logger with debug flag
     logger = setup_logger(debug=debug)
     logger.info("Starting resource optimization process")
 
@@ -125,7 +124,6 @@ def main(
     try:
         os.makedirs(project_tmp, exist_ok=True)
     except Exception:
-        # Fall back to system temp if project tmp cannot be created
         project_tmp = None
 
     temp_base = (
@@ -159,7 +157,6 @@ def main(
         history_window_hours=history_hours,
     )
 
-    # Create strategy instance
     strategy_instance = StrategyFactory.create_strategy(config)
     logger.info(f"Using {strategy} strategy for recommendations")
 
@@ -182,7 +179,6 @@ def main(
         if prometheus_provider == "aws":
             aws_region = os.getenv("AWS_REGION", "us-east-1")
             prom_kwargs["aws_region"] = aws_region
-            # AWSPrometheusConfig picks up credentials from the environment
         prom_client = create_prometheus_client(
             url=prometheus_url,
             provider=prometheus_provider,
@@ -201,8 +197,57 @@ def main(
     # Generate recommendations
     recommendations = optimizer.generate_recommendations()
 
+    # Prepare for PR automation: if we have GitHub credentials and are
+    # not skipping PRs, clone the target repository and create a new
+    # branch so subsequent manifest updates are written directly into
+    # the cloned branch (in `tmp`) instead of the tool's working tree.
+    github_username = os.getenv("GITHUB_USERNAME")
+    repo_name = os.getenv("GITHUB_REPOSITORY_NAME")
+    github_token = os.environ.get("GITHUB_TOKEN")
+
+    pr_clone_dir = None
+    new_branch_name = None
+
+    if not skip_pr and github_token and github_username and repo_name:
+        repo_url = (
+            f"https://{github_token}@github.com/{github_username}/{repo_name}.git"
+        )
+        cloned_path = clone_github_repo(repo_url)
+        if cloned_path:
+            pr_clone_dir = cloned_path
+            random_number = secrets.randbelow(1000) + 1
+            new_branch_name = f"update_resources_k8s_manifests_{random_number}"
+            created = create_and_switch_to_branch(pr_clone_dir, new_branch_name)
+            if not created:
+                logger.error(
+                    "Failed to create branch in cloned repo; will update local files instead"
+                )
+                pr_clone_dir = None
+        else:
+            logger.error(
+                "Failed to clone repo for PR automation; will update local files instead"
+            )
+
+    # Determine target directory for manifest updates. If we cloned the
+    # repository for PR automation, write updates into the cloned repo so
+    # they end up on the feature branch; otherwise update the provided
+    # `directory` in-place (useful for --skip-pr or missing credentials).
+    target_directory = directory
+    if pr_clone_dir:
+        # If `directory` is an absolute path inside this workspace, try to
+        # convert it to a repo-relative path. Otherwise join directly.
+        if os.path.isabs(directory):
+            repo_root = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+            try:
+                rel_dir = os.path.relpath(directory, start=repo_root)
+                target_directory = os.path.join(pr_clone_dir, rel_dir)
+            except Exception:
+                target_directory = os.path.join(pr_clone_dir, directory)
+        else:
+            target_directory = os.path.join(pr_clone_dir, directory)
+
     # Process deployments and get updated deployments
-    updated_deployments = process_deployments(recommendations, directory)
+    updated_deployments = process_deployments(recommendations, target_directory)
     logger.info(f"Updated {len(updated_deployments)} deployments")
 
     # Prepare recommendations data structure
@@ -213,43 +258,51 @@ def main(
 
     # Save recommendations to file
     logger.info(f"Using TEMP directory: {temp_dir}")
+    os.makedirs(temp_dir, exist_ok=True)
     with open(os.path.join(temp_dir, "recommendations.json"), "w") as f:
         json.dump(recommendations_data, f, indent=2)
 
     logger.info("Resource optimization process completed")
     logger.info("Starting automated process to create pull request ...")
 
-    github_username = os.getenv("GITHUB_USERNAME")
-    repo_name = os.getenv("GITHUB_REPOSITORY_NAME")
-    github_token = os.environ.get("GITHUB_TOKEN")
+    # If no deployments were updated, there's nothing to commit or PR.
+    if not updated_deployments:
+        logger.info("No deployments were updated; skipping PR automation.")
+        return
 
+    repository_full_name = None
     if skip_pr:
         logger.info("Skipping PR automation because --skip-pr was provided")
         return
 
-    if not github_token:
+    if not (github_token and github_username and repo_name):
         logger.warning(
-            "GITHUB_TOKEN not set; skipping PR automation. Set GITHUB_TOKEN or use --skip-pr to disable explicitly."
+            "Missing GitHub credentials; cannot create PR. Set GITHUB_TOKEN, GITHUB_USERNAME and GITHUB_REPOSITORY_NAME."
         )
         return
 
-    # Proceed with PR automation
-    repo_url = f"https://{github_token}@github.com/{github_username}/{repo_name}.git"
-    # Let `clone_github_repo` choose the default local directory (project `tmp`) by
-    # passing None for `local_dir`.
-    local_dir = None
-    random_number = secrets.randbelow(1000) + 1  # Generate number between 1 and 1000
-    new_branch_name = f"update_resources_k8s_manifests_{random_number}"
-    clone_github_repo(repo_url, local_dir)
-
     repository_full_name = f"{github_username}/{repo_name}"
-    create_and_switch_to_branch(local_dir, new_branch_name)
-    commit_and_push_changes(recommendations_data, local_dir, new_branch_name, repo_url)
+    repo_url = f"https://{github_token}@github.com/{github_username}/{repo_name}.git"
 
-    source_branch = new_branch_name
+    # Commit and push from cloned branch if available, otherwise fall back
+    if pr_clone_dir and new_branch_name:
+        commit_and_push_changes(
+            recommendations_data, pr_clone_dir, new_branch_name, repo_url
+        )
+        source_branch = new_branch_name
+    else:
+        # Fallback: commit from the workspace (not ideal for PRs)
+        workspace_root = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+        commit_and_push_changes(recommendations_data, workspace_root, "main", repo_url)
+        source_branch = "main"
+
     destination_branch = "main"
     title = "K8s manifest resource usage updates, please take a look and update with the following recommendations"
-    description = "This PR was automatically generated by the Kubernetes Resource Optimizer tool. It includes recommendations for updating resource requests and limits based on recent usage metrics. Please review the changes and merge if they look good."
+    description = (
+        "This PR was automatically generated by the Kubernetes Resource Optimizer tool. "
+        "It includes recommendations for updating resource requests and limits based on recent usage metrics. "
+        "Please review the changes and merge if they look good."
+    )
 
     create_github_pull_request(
         repository_full_name,

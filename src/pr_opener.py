@@ -40,6 +40,24 @@ def create_github_pull_request(
         # Get the repository
         repo = g.get_repo(repository_name)
 
+        # Ensure there are commits on the source branch that differ from
+        # the destination branch. If there are no commits, skip creating
+        # a pull request to avoid GitHub validation errors.
+        try:
+            comparison = repo.compare(destination_branch, source_branch)
+            total_commits = getattr(comparison, "total_commits", None)
+            if total_commits is not None and total_commits == 0:
+                logger.info(
+                    "No commits between %s and %s; skipping pull request.",
+                    destination_branch,
+                    source_branch,
+                )
+                return None
+        except Exception:
+            # If comparison fails for any reason (missing branch on remote,
+            # permissions, etc.), proceed and let the PR creation API return
+            # the appropriate error. We intentionally do not fail here.
+            logger.debug("Could not compare branches before creating PR; continuing")
         # Create the pull request
         pr = repo.create_pull(
             title=title, body=description, head=source_branch, base=destination_branch
@@ -90,12 +108,17 @@ def clone_github_repo(repo_url: str, local_dir: str | None = None):
         )
 
         logger.info(f"Repository successfully cloned into {local_dir}")
+        # Return the path where the repository was cloned so callers
+        # can operate on the correct working copy.
+        return local_dir
     except subprocess.CalledProcessError as e:
         logger.error(f"Error cloning the repository: {e.stderr}")
         raise
     except Exception as e:
         logger.error(f"An unexpected error occurred: {str(e)}")
         raise
+    # In case of unexpected flow, return None
+    return None
 
 
 def create_and_switch_to_branch(repo_path, new_branch_name) -> bool:
@@ -139,20 +162,85 @@ def commit_and_push_changes(recommendations, local_dir, branch_name, repo_url) -
     # helper functions available in prompt_creator are intentionally not used here
     # but may be useful for callers that need the file lists/contents.
 
-    for deployment in recommendations["metadata"]["updated_deployments"]:
-        values_file_path_relative = deployment["updated_file"].split(
-            "/app/manifests/", 1
-        )[1]
-        # Directly copy the file content without YAML parsing
-        shutil.copy2(
-            deployment["updated_file"], f"{local_dir}/{values_file_path_relative}"
-        )
+    for deployment in recommendations.get("metadata", {}).get(
+        "updated_deployments", []
+    ):
+        updated_file = deployment.get("updated_file")
+        if not updated_file:
+            logger.warning(
+                f"Skipping deployment because 'updated_file' is missing: {deployment}"
+            )
+            continue
+
+        # Compute the path of the updated file relative to the cloned repository root
+        # so that `git add` operates on the correct path inside the clone.
+        repo_root = os.path.abspath(local_dir)
+        values_file_path_relative = None
+        try:
+            values_file_path_relative = os.path.relpath(updated_file, start=repo_root)
+        except Exception as e:
+            logger.debug(f"Could not compute relpath: {e}")
+            try:
+                values_file_path_relative = os.path.basename(updated_file)
+            except Exception as e2:
+                logger.error(f"Failed to determine file name for updated_file: {e2}")
+                continue
+
+        if not values_file_path_relative:
+            logger.warning(f"Computed empty relative path for {updated_file}, skipping")
+            continue
+
+        dest_path = os.path.join(local_dir, values_file_path_relative)
+        dest_dir = os.path.dirname(dest_path)
+        if dest_dir and not os.path.exists(dest_dir):
+            os.makedirs(dest_dir, exist_ok=True)
+
+        # If the updated file already lives inside the cloned repo, no
+        # need to copy it on top of itself. Otherwise copy the file into
+        # the cloned repo so commits include the change.
+        try:
+            abs_updated = os.path.abspath(updated_file)
+            abs_dest = os.path.abspath(dest_path)
+            if abs_updated != abs_dest:
+                shutil.copy2(updated_file, dest_path)
+            else:
+                logger.debug(
+                    f"Updated file already in clone; skipping copy: {updated_file}"
+                )
+        except Exception as e:
+            logger.error(f"Failed to copy {updated_file} to {dest_path}: {e}")
+            continue
 
         # Commit changes
-        repo.git.add(values_file_path_relative)
-        repo.git.commit("-m", "Updating values with recommendations")
+        try:
+            repo.git.add(values_file_path_relative)
+            repo.git.commit("-m", "Updating values with recommendations")
+        except Exception as e:
+            logger.error(
+                f"Failed to commit changes for {values_file_path_relative}: {e}"
+            )
+            continue
 
     # Push the new branch (optional, may require additional authentication setup)
+    # Before pushing, ensure the branch actually has commits that differ
+    # from the repository's main branch. If there are zero commits ahead,
+    # skip pushing to avoid creating empty branches on the remote.
+    commits_ahead = None
+    try:
+        # Prefer checking against origin/main (remote) when available
+        commits_ahead = int(repo.git.rev_list("--count", f"origin/main..{branch_name}"))
+    except Exception:
+        try:
+            commits_ahead = int(repo.git.rev_list("--count", f"main..{branch_name}"))
+        except Exception:
+            commits_ahead = None
+
+    if commits_ahead is not None and commits_ahead == 0:
+        logger.info(
+            "Branch '%s' has no commits ahead of main; skipping push.", branch_name
+        )
+        return False
+
     repo.git.push("origin", branch_name)
 
     logger.info(f"values.yaml updated on branch '{branch_name}'.")

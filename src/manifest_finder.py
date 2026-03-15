@@ -174,7 +174,44 @@ def find_kustomize_resource_files(
     logger.debug(f"Looking for Kustomize files in {base_dir}/{path}")
     logger.debug(f"Searching for deployment: {deployment_name}")
 
-    kustomization_path = os.path.join(base_dir, path, "kustomization.yaml")
+    # Normalize the provided path: ArgoCD apps may store repo-relative paths
+    # (e.g. "tests/integration/kustomize/hello-world/overlay/staging") while
+    # callers pass a base_dir such as "tests/integration/kustomize". If the
+    # app path already contains the base_dir, avoid duplicating it when
+    # joining paths.
+    normalized_path = path
+    try:
+        # If path is absolute, make it relative to base_dir
+        if os.path.isabs(path):
+            normalized_path = os.path.relpath(path, base_dir)
+        else:
+            # Handle repo-relative paths that already include parts of base_dir
+            # For example: base_dir='/.../tests/integration/kustomize' and
+            # path='tests/integration/kustomize/hello-world/overlay/staging'.
+            # We want to strip the duplicated prefix so joining doesn't repeat it.
+            base_parts = os.path.normpath(base_dir).split(os.sep)
+            path_parts = os.path.normpath(path).split(os.sep)
+
+            # Find the longest suffix of base_parts that is a prefix of path_parts
+            match_len = 0
+            for i in range(1, min(len(base_parts), len(path_parts)) + 1):
+                if base_parts[-i:] == path_parts[:i]:
+                    match_len = i
+
+            if match_len > 0:
+                # Strip the matching prefix from path_parts
+                normalized_path = (
+                    os.path.join(*path_parts[match_len:])
+                    if len(path_parts) > match_len
+                    else ""
+                )
+            else:
+                normalized_path = path
+    except Exception:
+        # Fallback to the original path on any error
+        normalized_path = path
+
+    kustomization_path = os.path.join(base_dir, normalized_path, "kustomization.yaml")
     logger.debug(f"Checking kustomization path: {kustomization_path}")
 
     if not os.path.exists(kustomization_path):
