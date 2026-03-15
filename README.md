@@ -39,7 +39,7 @@ or integrate it into CI/CD pipelines with GitHub Actions.
 ### 1. Build Docker image locally
 
 ```bash
-docker build --no-cache -t k8sresourceautoresizer -f Dockerfile .
+docker build -t k8sresourceautoresizer -f Dockerfile .
 ```
 
 ### 2. Run local development environment (interactive mode)
@@ -52,9 +52,10 @@ docker run -it \
   -v /var/run/docker.sock:/var/run/docker.sock \
   -v $(pwd)/kube:/root/.kube \
   -v $(pwd):/app \
-  -e CLUSTER_NAME=eks-blog-demo \
+  -e CLUSTER_NAME=k8s-limits-cluster \
   -e RUN_LOCAL=true \
-  k8sresourceautoresizer
+  k8sresourceautoresizer \
+  sh
 ```
 
 ### 3. Run with ensemble strategy for resource optimization

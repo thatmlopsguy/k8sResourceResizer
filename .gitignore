@@ -85,3 +85,5 @@ logs/
 # secret files
 .env
 .secrets
+
+kube/

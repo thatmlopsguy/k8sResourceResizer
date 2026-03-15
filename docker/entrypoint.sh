@@ -1,8 +1,15 @@
 #!/usr/bin/env bash
+#
+# This entrypoint script sets up a kind cluster, installs Argo CD, and configures access.
+# It also includes robust error handling and retries to ensure a smooth setup process.
+
 set -eu
 
+# Default environment variables with fallbacks
 CLUSTER_NAME="${CLUSTER_NAME:-k8s-limits-cluster}"
-ARGOCD_VERSION="${ARGOCD_VERSION:-v2.14.2}"
+ARGOCD_VERSION="${ARGOCD_VERSION:-v3.3.3}"
+KUBECONFIG_DIR="${KUBECONFIG_DIR:-/root/.kube}"
+KUBECONFIG_PATH="${KUBECONFIG_PATH:-/root/.kube/config}"
 
 # Function to wait for a specific resource to be ready
 wait_for_resource() {
@@ -34,10 +41,7 @@ for i in {1..10}; do
   fi
 done
 
-KUBECONFIG_PATH="/root/.kube/config"
-
 echo "🔧 === Creating kind cluster '${CLUSTER_NAME}' ==="
-
 # Create a kind config file with port mappings
 cat > /tmp/kind-config.yaml <<EOF
 kind: Cluster
@@ -63,8 +67,6 @@ echo "✅ All nodes are ready"
 
 # Export kubeconfig
 echo "🔧 Setting up kubeconfig..."
-KUBECONFIG_DIR="/root/.kube"
-
 # Ensure kubeconfig directory exists
 mkdir -p "${KUBECONFIG_DIR}"
 kind export kubeconfig --name "${CLUSTER_NAME}"
