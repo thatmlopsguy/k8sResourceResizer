@@ -33,3 +33,6 @@ logs/
 .env
 .secrets
 .secret.example
+
+# Temporary files
+tmp/
