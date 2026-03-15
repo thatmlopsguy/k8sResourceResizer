@@ -39,7 +39,7 @@ load_dotenv()
 @click.command()
 @click.option(
     "--directory",
-    default="tests/integration/kustomize",
+    default="tests/integration/helm",
     help="Directory containing YAML manifests. Default: tests/integration/kustomize",
 )
 @click.option(
@@ -264,6 +264,11 @@ def main(
 
     logger.info("Resource optimization process completed")
     logger.info("Starting automated process to create pull request ...")
+
+    # If no deployments were updated, there's nothing to commit or PR.
+    if not updated_deployments:
+        logger.info("No deployments were updated; skipping PR automation.")
+        return
 
     repository_full_name = None
     if skip_pr:

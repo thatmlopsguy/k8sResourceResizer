@@ -254,7 +254,7 @@ def build_model_prompt(recommendations, repo_name):
     updated_file_paths_relative = get_updated_file_paths_relative(recommendations)
     updated_file_contents = get_updated_file_contents(recommendations)
 
-    prompt = f"Application: {repo_name}\n\Recommendations:\n"
+    prompt = f"Application: {repo_name}\nRecommendations:\n"
     prompt += f"Recommendations: {recommendations}\n"
     prompt += (
         f"- Updated kubernetes manifest file location: {updated_file_paths_relative}\n"

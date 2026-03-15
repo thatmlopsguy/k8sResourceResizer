@@ -13,7 +13,7 @@ help: ## Show this help
 docker-build: ## Build Docker image locally
 	@docker build $(DOCKER_BUILD_ARGS) -t $(IMAGE):$(VERSION) -f $(DOCKERFILE) .
 
-.PHONY: pre-commit-run pre-commit-install pre-commit-update lint format run
+.PHONY: pre-commit-run pre-commit-install pre-commit-update lint format test run
 ## @ Development
 pre-commit-run: ## Run pre-commit hooks
 	@uv run prek run --all-files
@@ -32,11 +32,17 @@ format: ## Run code formatters
 	@uv run ruff format
 	@uv run isort .
 
+test: ## Run pytest with coverage
+	@uv run pytest --cov=src --cov-report=term-missing
+
 run: ## Run the application locally
 	@uv run python -m src.main
 
 apply-kustomize: ## Apply kustomize applications to cluster
 	@kubectl apply -f tests/integration/kustomize/applications
+
+apply-helm: ## Apply helm applications to cluster
+	@kubectl apply -f tests/integration/helm/applications
 
 clean: ## Clean build artifacts and caches
 	@rm -rf dist build *.egg-info

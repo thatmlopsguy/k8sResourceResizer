@@ -40,6 +40,24 @@ def create_github_pull_request(
         # Get the repository
         repo = g.get_repo(repository_name)
 
+        # Ensure there are commits on the source branch that differ from
+        # the destination branch. If there are no commits, skip creating
+        # a pull request to avoid GitHub validation errors.
+        try:
+            comparison = repo.compare(destination_branch, source_branch)
+            total_commits = getattr(comparison, "total_commits", None)
+            if total_commits is not None and total_commits == 0:
+                logger.info(
+                    "No commits between %s and %s; skipping pull request.",
+                    destination_branch,
+                    source_branch,
+                )
+                return None
+        except Exception:
+            # If comparison fails for any reason (missing branch on remote,
+            # permissions, etc.), proceed and let the PR creation API return
+            # the appropriate error. We intentionally do not fail here.
+            logger.debug("Could not compare branches before creating PR; continuing")
         # Create the pull request
         pr = repo.create_pull(
             title=title, body=description, head=source_branch, base=destination_branch
@@ -204,6 +222,25 @@ def commit_and_push_changes(recommendations, local_dir, branch_name, repo_url) -
             continue
 
     # Push the new branch (optional, may require additional authentication setup)
+    # Before pushing, ensure the branch actually has commits that differ
+    # from the repository's main branch. If there are zero commits ahead,
+    # skip pushing to avoid creating empty branches on the remote.
+    commits_ahead = None
+    try:
+        # Prefer checking against origin/main (remote) when available
+        commits_ahead = int(repo.git.rev_list("--count", f"origin/main..{branch_name}"))
+    except Exception:
+        try:
+            commits_ahead = int(repo.git.rev_list("--count", f"main..{branch_name}"))
+        except Exception:
+            commits_ahead = None
+
+    if commits_ahead is not None and commits_ahead == 0:
+        logger.info(
+            "Branch '%s' has no commits ahead of main; skipping push.", branch_name
+        )
+        return False
+
     repo.git.push("origin", branch_name)
 
     logger.info(f"values.yaml updated on branch '{branch_name}'.")

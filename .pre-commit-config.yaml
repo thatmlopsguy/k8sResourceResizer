@@ -60,3 +60,10 @@ repos:
     hooks:
       - id: validate-pyproject
         priority: 0
+  - repo: local
+    hooks:
+      - id: pytest
+        name: pytest
+        entry: pytest --cov=src --cov-report=term-missing
+        language: system
+        pass_filenames: false
