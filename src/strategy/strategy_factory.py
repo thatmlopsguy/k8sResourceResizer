@@ -1,4 +1,3 @@
-from . import RecommendationConfig, RecommendationStrategy
 from .adaptive_strategy import AdaptiveStrategy
 from .basic_strategy import BasicStrategy
 from .ensemble_strategy import EnsembleStrategy
@@ -8,6 +7,7 @@ from .prophet_strategy import ProphetStrategy
 from .quantile_regression_strategy import QuantileRegressionStrategy
 from .time_aware_strategy import TimeAwareStrategy
 from .trend_aware_strategy import TrendAwareStrategy
+from .types import RecommendationConfig, RecommendationStrategy
 from .workload_aware_strategy import WorkloadAwareStrategy
 
 

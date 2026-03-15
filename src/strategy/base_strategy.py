@@ -1,7 +1,7 @@
 from abc import ABC, abstractmethod
 from typing import List, Optional
 
-from . import RecommendationConfig
+from .types import RecommendationConfig
 
 
 class BaseStrategy(ABC):

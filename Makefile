@@ -32,6 +32,8 @@ format: ## Run code formatters
 	@uv run ruff format
 	@uv run isort .
 
+run: ## Run the application locally
+	@uv run python -m src.main
 
 ##@ Observability (metrics, traces, logs)
 grafana-vm-ui: ## Access grafana ui
