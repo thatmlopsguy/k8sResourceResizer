@@ -38,6 +38,12 @@ run: ## Run the application locally
 apply-kustomize: ## Apply kustomize applications to cluster
 	@kubectl apply -f tests/integration/kustomize/applications
 
+clean: ## Clean build artifacts and caches
+	@rm -rf dist build *.egg-info
+	@rm -rf .pytest_cache .mypy_cache .ruff_cache
+	@rm -rf tmp/
+	@rm -rf logs/*.log
+
 .PHONY: grafana-vm-ui grafana-vm-password grafana-ui grafana-password prometheus-ui vm-ui
 ##@ Observability
 grafana-vm-ui: ## Access grafana ui
