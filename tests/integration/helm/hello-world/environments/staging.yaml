@@ -1,6 +1,6 @@
 environment: staging
 
-replicaCount: 2
+replicaCount: 1
 
 image:
   repository: polinux/stress-ng
@@ -17,5 +17,5 @@ resources:
 
 autoscaling:
   enabled: true
-  minReplicas: 2
-  maxReplicas: 4
+  minReplicas: 1
+  maxReplicas: 2

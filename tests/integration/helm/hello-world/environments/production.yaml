@@ -1,6 +1,6 @@
 environment: production
 
-replicaCount: 3
+replicaCount: 1
 
 image:
   repository: polinux/stress-ng
@@ -17,5 +17,5 @@ resources:
 
 autoscaling:
   enabled: true
-  minReplicas: 3
-  maxReplicas: 6
+  minReplicas: 1
+  maxReplicas: 3
