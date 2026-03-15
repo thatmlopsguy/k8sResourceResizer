@@ -1,0 +1,23 @@
+{
+    "cSpell.words": [
+        "commitizen",
+        "isort",
+        "kustomization",
+        "mypy",
+        "prometrix",
+        "pytest"
+    ],
+    "files.exclude": {
+        "**/.git": true,
+        "**/.svn": true,
+        "**/.hg": true,
+        "**/.DS_Store": true,
+        "**/Thumbs.db": true,
+        "**/.ruff_cache": true,
+        "**/.mypy_cache": true,
+        "**/.pytest_cache": true,
+        "**/.venv": true,
+        "**/venv": true,
+        "**/.coverage": true
+    }
+}
