@@ -13,8 +13,8 @@ help: ## Show this help
 docker-build: ## Build Docker image locally
 	@docker build $(DOCKER_BUILD_ARGS) -t $(IMAGE):$(VERSION) -f $(DOCKERFILE) .
 
+.PHONY: pre-commit-run pre-commit-install pre-commit-update lint format run
 ## @ Development
-.PHONY: pre-commit-run pre-commit-install pre-commit-update lint format
 pre-commit-run: ## Run pre-commit hooks
 	@uv run prek run --all-files
 
@@ -35,7 +35,8 @@ format: ## Run code formatters
 run: ## Run the application locally
 	@uv run python -m src.main
 
-##@ Observability (metrics, traces, logs)
+.PHONY: grafana-vm-ui grafana-vm-password grafana-ui grafana-password prometheus-ui vm-ui
+##@ Observability
 grafana-vm-ui: ## Access grafana ui
 	@kubectl port-forward svc/victoria-metrics-k8s-stack-grafana -n monitoring 3000:80
 
@@ -54,6 +55,7 @@ prometheus-ui: ## Access prometheus ui
 vm-ui: ## Access victoria metrics ui
 	@kubectl port-forward svc/vmsingle-victoria-metrics-k8s-stack -n monitoring 8429:8429
 
+.PHONY: argo-cd-password argo-cd-ui argo-cd-login argo-cd-apps
 ## @ Argo CD
 argo-cd-password: ## Get Argo CD initial admin password
 	@kubectl -n argocd get secret argocd-initial-admin-secret -o jsonpath="{.data.password}" | base64 -d; echo
