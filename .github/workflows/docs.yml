@@ -38,4 +38,4 @@ jobs:
             venv-${{ runner.os }}-
 
       - run: |
-          uv run mkdocs gh-deploy --force
+          uv run --only-group docs mkdocs gh-deploy --force
