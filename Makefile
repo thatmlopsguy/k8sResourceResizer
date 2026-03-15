@@ -35,6 +35,9 @@ format: ## Run code formatters
 run: ## Run the application locally
 	@uv run python -m src.main
 
+apply-kustomize: ## Apply kustomize applications to cluster
+	@kubectl apply -f tests/integration/kustomize/applications
+
 ##@ Observability (metrics, traces, logs)
 grafana-vm-ui: ## Access grafana ui
 	@kubectl port-forward svc/victoria-metrics-k8s-stack-grafana -n monitoring 3000:80

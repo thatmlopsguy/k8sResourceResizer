@@ -118,8 +118,21 @@ def main(
         logger.error(f"Invalid history window format: {e}")
         sys.exit(1)
 
-    # Create TEMP directory
-    temp_base = tempfile.mkdtemp(prefix="k8s_resource_")
+    # Create temporary directory inside the project's `tmp` folder so runs
+    # are colocated with the repository workspace (easier inspection).
+    repo_root = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+    project_tmp = os.path.join(repo_root, "tmp")
+    try:
+        os.makedirs(project_tmp, exist_ok=True)
+    except Exception:
+        # Fall back to system temp if project tmp cannot be created
+        project_tmp = None
+
+    temp_base = (
+        tempfile.mkdtemp(prefix="k8s_resource_", dir=project_tmp)
+        if project_tmp
+        else tempfile.mkdtemp(prefix="k8s_resource_")
+    )
     temp_dir = os.path.join(temp_base, "TEMP")
     os.makedirs(temp_dir, exist_ok=True)
 
@@ -222,7 +235,9 @@ def main(
 
     # Proceed with PR automation
     repo_url = f"https://{github_token}@github.com/{github_username}/{repo_name}.git"
-    local_dir = os.path.join(temp_base, repo_name)
+    # Let `clone_github_repo` choose the default local directory (project `tmp`) by
+    # passing None for `local_dir`.
+    local_dir = None
     random_number = secrets.randbelow(1000) + 1  # Generate number between 1 and 1000
     new_branch_name = f"update_resources_k8s_manifests_{random_number}"
     clone_github_repo(repo_url, local_dir)

@@ -111,8 +111,7 @@ def patch_applications(applications: List[Application]) -> str:
         if "destination" in spec:
             spec["destination"]["name"] = "in-cluster"
             spec["destination"].pop("server", None)
-        spec["project"] = "default"
-        spec.pop("syncPolicy", None)
+        spec["project"] = "default"  # spec.pop("syncPolicy", None)
 
     output = "\n---\n".join([yaml.dump(app.yaml_content) for app in applications])
     return output

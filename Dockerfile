@@ -32,7 +32,7 @@ RUN apt upgrade -y  \
 
 # Copy project files
 WORKDIR /app
-COPY pyproject.toml ./
+COPY uv.lock ./
 COPY src ./src/
 
 # Upgrade pip and install Cython first
