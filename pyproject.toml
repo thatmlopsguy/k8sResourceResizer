@@ -7,7 +7,7 @@ license = "MIT"
 requires-python = ">=3.13"
 dependencies = [
     "click>=8.3.1",
-    "gitpython>=3.1.46",
+    "gitpython>=3.1.47",
     "loguru>=0.7.3",
     "numpy>=2.4.3",
     "pandas>=3.0.1",
